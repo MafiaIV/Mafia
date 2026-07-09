@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: mafia-server
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build --workspace=packages/shared && npm run build --workspace=apps/server
+    startCommand: npm run start --workspace=apps/server
+    envVars:
+      - key: WEB_ORIGIN
+        value: https://mafia-web.onrender.com
+
+  - type: web
+    name: mafia-web
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build --workspace=packages/shared && npm run build --workspace=apps/web
+    startCommand: npm run start --workspace=apps/web
+    envVars:
+      - key: NEXT_PUBLIC_SERVER_URL
+        value: https://mafia-server.onrender.com
