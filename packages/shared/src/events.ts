@@ -2,6 +2,7 @@ import type { RoleDistribution } from './roleDistribution.js';
 import type {
   ChatMessagePayload,
   InvestigationResultPayload,
+  MafiaPicksPayload,
   NightActionPayload,
   NightYourTurnPayload,
   RoleAssignedPayload,
@@ -28,7 +29,9 @@ export interface ClientToServerEvents {
   'night:action': (payload: NightActionPayload) => void;
   'day:vote': (payload: { targetId: string | null }) => void;
   'day:revealMayor': () => void;
-  'chat:message': (payload: { text: string }) => void;
+  'chat:message': (payload: { text: string; channel?: 'mafia' }) => void;
+  'room:leave': () => void;
+  'room:restart': () => void;
   'voice:join': () => void;
   'voice:leave': () => void;
   'voice:signal': (payload: VoiceSignalPayload) => void;
@@ -41,6 +44,7 @@ export interface ServerToClientEvents {
   'role:assigned': (payload: RoleAssignedPayload) => void;
   'night:yourTurn': (payload: NightYourTurnPayload) => void;
   'night:waiting': () => void;
+  'night:mafiaPicks': (payload: MafiaPicksPayload) => void;
   'investigation:result': (payload: InvestigationResultPayload) => void;
   'chat:message': (payload: ChatMessagePayload) => void;
   'voice:peers': (payload: { peers: VoicePeerInfo[] }) => void;

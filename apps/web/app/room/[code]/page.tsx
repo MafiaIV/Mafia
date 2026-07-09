@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { getSocket } from '../../../lib/socket';
 import { useGameStore } from '../../../lib/useGameStore';
-import { loadSession, saveSession } from '../../../lib/session';
+import { loadSession, saveSession, clearSession } from '../../../lib/session';
 import type { RoleId } from '@mafia/shared';
-import { RoleDeck } from '../../../components/RoleDeck';
+import { GameHeader } from '../../../components/GameHeader';
+import { GameFooter } from '../../../components/GameFooter';
 import { MyRoleBadge } from '../../../components/MyRoleBadge';
 import { RoleZoomOverlay } from '../../../components/RoleZoomOverlay';
 import { Lobby } from '../../../components/Lobby';
@@ -14,13 +15,13 @@ import { NightOverlay } from '../../../components/NightOverlay';
 import { DayDiscussion } from '../../../components/DayDiscussion';
 import { VotingPanel } from '../../../components/VotingPanel';
 import { GameOverScreen } from '../../../components/GameOverScreen';
-import { VoiceChat } from '../../../components/VoiceChat';
 
 type Status = 'checking' | 'need-join' | 'joined';
 
 export default function RoomPage() {
   const params = useParams<{ code: string }>();
   const code = params.code.toUpperCase();
+  const router = useRouter();
   const store = useGameStore();
   const [status, setStatus] = useState<Status>('checking');
   const [joinName, setJoinName] = useState('');
@@ -83,19 +84,28 @@ export default function RoomPage() {
     );
   }
 
-  const { roomState, myRole, playerId, nightTurn, isNightWaiting, chatMessages } = store;
+  const { roomState, myRole, playerId, nightTurn, isNightWaiting, chatMessages, mafiaPicks } = store;
 
   if (!roomState || !playerId) {
     return <div className="center-page">Зареждане на стаята...</div>;
   }
 
   const me = roomState.players.find((p) => p.id === playerId);
-  const showVoice = roomState.phase !== 'lobby' && roomState.phase !== 'game_over';
+  const isHost = roomState.hostId === playerId;
+
+  function handleLeave() {
+    getSocket().emit('room:leave');
+    clearSession(code);
+    router.push('/');
+  }
+
+  function handleNewGame() {
+    getSocket().emit('room:restart');
+  }
 
   return (
-    <div className="app-shell">
-      {roomState.phase !== 'lobby' && <RoleDeck roleDeck={roomState.roleDeck} onZoom={setZoomedRole} />}
-      {showVoice && <VoiceChat channel={me?.alive === false ? 'dead' : 'alive'} />}
+    <div className="app-shell game-bg">
+      <GameHeader roleDeck={roomState.roleDeck} onZoom={setZoomedRole} onLeave={handleLeave} />
       <div className="game-body">
         {roomState.phase === 'lobby' && <Lobby roomState={roomState} myPlayerId={playerId} />}
 
@@ -106,7 +116,15 @@ export default function RoomPage() {
           </div>
         )}
 
-        {roomState.phase === 'night' && <NightOverlay nightTurn={nightTurn} isWaiting={isNightWaiting} />}
+        {roomState.phase === 'night' && (
+          <NightOverlay
+            nightTurn={nightTurn}
+            isWaiting={isNightWaiting}
+            myPlayerId={playerId}
+            mafiaPicks={mafiaPicks}
+            chatMessages={chatMessages}
+          />
+        )}
 
         {roomState.phase === 'day_reveal' && (
           <div className="section">
@@ -133,6 +151,13 @@ export default function RoomPage() {
 
         {roomState.phase === 'game_over' && <GameOverScreen roomState={roomState} />}
       </div>
+      {roomState.phase !== 'lobby' && (
+        <GameFooter
+          channel={me?.alive === false ? 'dead' : 'alive'}
+          showNewGame={roomState.phase === 'game_over' && isHost}
+          onNewGame={handleNewGame}
+        />
+      )}
       {roomState.phase !== 'lobby' && roomState.phase !== 'game_over' && (
         <MyRoleBadge roleId={myRole} onZoom={setZoomedRole} />
       )}

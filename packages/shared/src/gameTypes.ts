@@ -74,6 +74,13 @@ export interface NightYourTurnPayload {
   mafiaTargetId?: string | null;
   hasHeal?: boolean;
   hasPoison?: boolean;
+  /** for mafia only: their fellow living mafia members */
+  mafiaTeammates?: { id: string; name: string }[];
+}
+
+/** Live view of every mafia member's current (possibly still-changing) pick, so they can coordinate. */
+export interface MafiaPicksPayload {
+  picks: { playerId: string; targetId: string | null }[];
 }
 
 export interface InvestigationResultPayload {
@@ -82,7 +89,7 @@ export interface InvestigationResultPayload {
 }
 
 export interface ChatMessagePayload {
-  channel: 'alive' | 'dead';
+  channel: 'alive' | 'dead' | 'mafia';
   senderId: string;
   senderName: string;
   text: string;

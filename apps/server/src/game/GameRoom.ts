@@ -128,6 +128,7 @@ export class GameRoom {
     this.io.in(socketId).socketsJoin(`${this.code}:${player.alive ? 'alive' : 'dead'}`);
     if (player.roleId) {
       this.io.to(socketId).emit('role:assigned', { roleId: player.roleId });
+      if (player.roleId === 'mafia') this.io.in(socketId).socketsJoin(`${this.code}:mafia`);
     }
     this.broadcastState();
     return true;
@@ -138,6 +139,15 @@ export class GameRoom {
     if (!player) return;
     player.connected = false;
     this.removeFromVoice(player.id);
+    this.broadcastState();
+  }
+
+  /** Explicit "leave game" click — same effect as a disconnect, but instant instead of waiting on the socket timeout. */
+  leaveRoom(playerId: string): void {
+    const player = this.players.get(playerId);
+    if (!player) return;
+    player.connected = false;
+    this.removeFromVoice(playerId);
     this.broadcastState();
   }
 
@@ -224,6 +234,7 @@ export class GameRoom {
       player.roleId = roleId;
       if (player.socketId) {
         this.io.to(player.socketId).emit('role:assigned', { roleId });
+        if (roleId === 'mafia') this.io.in(player.socketId).socketsJoin(`${this.code}:mafia`);
       }
     }
     this.phase = 'role_assignment';
@@ -231,6 +242,32 @@ export class GameRoom {
     this.broadcastState();
     setTimeout(() => this.beginNight(), 3000);
     return { ok: true };
+  }
+
+  /** Same players, fresh shuffle — resets every per-player game flag and jumps straight back into role assignment. */
+  restartGame(): { ok: boolean; error?: string } {
+    if (this.phase !== 'game_over') return { ok: false, error: 'Играта все още не е приключила.' };
+    for (const player of this.players.values()) {
+      player.roleId = null;
+      player.alive = true;
+      player.isMayorRevealed = false;
+      player.witchHealUsed = false;
+      player.witchPoisonUsed = false;
+      player.bodyguardUsed = false;
+      player.lastProtectedId = null;
+      if (player.socketId) {
+        this.io.in(player.socketId).socketsLeave(`${this.code}:mafia`);
+        this.io.in(player.socketId).socketsLeave(`${this.code}:dead`);
+        this.io.in(player.socketId).socketsJoin(`${this.code}:alive`);
+      }
+    }
+    this.roleDeck = [];
+    this.lastNightResult = null;
+    this.lastVoteResult = null;
+    this.winner = null;
+    this.voiceChannel.clear();
+    this.phase = 'lobby';
+    return this.startGame();
   }
 
   private livingPlayers(): InternalPlayer[] {
@@ -265,6 +302,10 @@ export class GameRoom {
     }
     this.currentActors = new Set(actors.map((p) => p.id));
 
+    const mafiaTeammates = step.roles.includes('mafia')
+      ? actors.filter((p) => p.roleId === 'mafia').map((p) => ({ id: p.id, name: p.name }))
+      : [];
+
     for (const actor of actors) {
       if (!actor.socketId) continue;
       const candidates = this.livingPlayers()
@@ -280,6 +321,7 @@ export class GameRoom {
         mafiaTargetId: actor.roleId === 'witch' ? this.nightActions.mafiaFinalTargetId : undefined,
         hasHeal: actor.roleId === 'witch' ? !actor.witchHealUsed : undefined,
         hasPoison: actor.roleId === 'witch' ? !actor.witchPoisonUsed : undefined,
+        mafiaTeammates: actor.roleId === 'mafia' ? mafiaTeammates.filter((m) => m.id !== actor.id) : undefined,
       });
     }
     // Everyone not acting this step sees a waiting/black overlay.
@@ -294,9 +336,12 @@ export class GameRoom {
   recordNightAction(playerId: string, payload: NightActionPayload): void {
     if (this.phase !== 'night') return;
     if (!this.currentActors.has(playerId)) return;
-    if (this.nightActions.submitted.has(playerId)) return;
     const player = this.players.get(playerId);
     if (!player || !player.roleId) return;
+    const isMafia = player.roleId === 'mafia';
+    // Mafia can change their pick until the whole team agrees; every other
+    // role gets one shot.
+    if (!isMafia && this.nightActions.submitted.has(playerId)) return;
 
     switch (player.roleId) {
       case 'seductress':
@@ -304,6 +349,7 @@ export class GameRoom {
         break;
       case 'mafia':
         this.nightActions.mafiaVotes.set(playerId, payload.targetId);
+        this.broadcastMafiaPicks();
         break;
       case 'detective': {
         this.nightActions.detectiveTargetId = payload.targetId;
@@ -331,10 +377,10 @@ export class GameRoom {
 
     this.nightActions.submitted.add(playerId);
 
-    const stepComplete = [...this.currentActors].every((id) => this.nightActions.submitted.has(id));
+    const stepComplete = isMafia ? this.mafiaReachedConsensus() : this.allActorsSubmitted();
 
-    if (player.roleId === 'mafia' && stepComplete) {
-      this.nightActions.mafiaFinalTargetId = this.tallyMafiaVotes();
+    if (isMafia && stepComplete) {
+      this.nightActions.mafiaFinalTargetId = this.nightActions.mafiaVotes.get(playerId) ?? null;
     }
 
     if (stepComplete) {
@@ -342,21 +388,26 @@ export class GameRoom {
     }
   }
 
-  private tallyMafiaVotes(): string | null {
-    const counts = new Map<string, number>();
-    for (const targetId of this.nightActions.mafiaVotes.values()) {
-      if (!targetId) continue;
-      counts.set(targetId, (counts.get(targetId) ?? 0) + 1);
+  private allActorsSubmitted(): boolean {
+    return [...this.currentActors].every((id) => this.nightActions.submitted.has(id));
+  }
+
+  /** The mafia step never auto-resolves by majority — every living mafia member must pick the same target. */
+  private mafiaReachedConsensus(): boolean {
+    const picks = [...this.currentActors].map((id) => this.nightActions.mafiaVotes.get(id));
+    if (picks.some((p) => p === undefined || p === null)) return false;
+    return new Set(picks).size === 1;
+  }
+
+  private broadcastMafiaPicks(): void {
+    const picks = [...this.currentActors].map((id) => ({
+      playerId: id,
+      targetId: this.nightActions.mafiaVotes.get(id) ?? null,
+    }));
+    for (const id of this.currentActors) {
+      const socketId = this.players.get(id)?.socketId;
+      if (socketId) this.io.to(socketId).emit('night:mafiaPicks', { picks });
     }
-    let best: string | null = null;
-    let bestCount = 0;
-    for (const [targetId, count] of counts) {
-      if (count > bestCount) {
-        best = targetId;
-        bestCount = count;
-      }
-    }
-    return best;
   }
 
   private resolveNight(): void {
@@ -507,10 +558,11 @@ export class GameRoom {
     this.broadcastState();
   }
 
-  recordChatMessage(playerId: string, text: string): void {
+  recordChatMessage(playerId: string, text: string, requestedChannel?: 'mafia'): void {
     const player = this.players.get(playerId);
     if (!player) return;
-    const channel = player.alive ? 'alive' : 'dead';
+    const wantsMafia = requestedChannel === 'mafia' && player.roleId === 'mafia' && player.alive;
+    const channel = wantsMafia ? 'mafia' : player.alive ? 'alive' : 'dead';
     this.io.to(`${this.code}:${channel}`).emit('chat:message', {
       channel,
       senderId: playerId,

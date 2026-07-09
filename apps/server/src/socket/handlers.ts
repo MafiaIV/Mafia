@@ -55,6 +55,17 @@ export function registerHandlers(io: IoServer, roomManager: RoomManager): void {
       getCurrentRoom()?.startGame();
     });
 
+    socket.on('room:restart', () => {
+      getCurrentRoom()?.restartGame();
+    });
+
+    socket.on('room:leave', () => {
+      if (!data.playerId) return;
+      const room = getCurrentRoom();
+      room?.leaveRoom(data.playerId);
+      if (room) roomManager.removeRoomIfEmpty(room.code);
+    });
+
     socket.on('day:startVoting', () => {
       getCurrentRoom()?.beginVoting();
     });
@@ -74,9 +85,9 @@ export function registerHandlers(io: IoServer, roomManager: RoomManager): void {
       getCurrentRoom()?.revealMayor(data.playerId);
     });
 
-    socket.on('chat:message', ({ text }) => {
+    socket.on('chat:message', ({ text, channel }) => {
       if (!data.playerId || !text.trim()) return;
-      getCurrentRoom()?.recordChatMessage(data.playerId, text.trim().slice(0, 500));
+      getCurrentRoom()?.recordChatMessage(data.playerId, text.trim().slice(0, 500), channel);
     });
 
     socket.on('voice:join', () => {

@@ -4,14 +4,20 @@ import { useState } from 'react';
 import type { ChatMessagePayload } from '@mafia/shared';
 import { getSocket } from '../lib/socket';
 
-export function ChatPanel({ channel, messages }: { channel: 'alive' | 'dead'; messages: ChatMessagePayload[] }) {
+export function ChatPanel({
+  channel,
+  messages,
+}: {
+  channel: 'alive' | 'dead' | 'mafia';
+  messages: ChatMessagePayload[];
+}) {
   const [text, setText] = useState('');
   const filtered = messages.filter((m) => m.channel === channel);
 
   function send() {
     const trimmed = text.trim();
     if (!trimmed) return;
-    getSocket().emit('chat:message', { text: trimmed });
+    getSocket().emit('chat:message', { text: trimmed, channel: channel === 'mafia' ? 'mafia' : undefined });
     setText('');
   }
 
@@ -31,7 +37,9 @@ export function ChatPanel({ channel, messages }: { channel: 'alive' | 'dead'; me
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && send()}
-          placeholder={channel === 'dead' ? 'Съобщение до мъртвите...' : 'Съобщение...'}
+          placeholder={
+            channel === 'dead' ? 'Съобщение до мъртвите...' : channel === 'mafia' ? 'Съобщение до мафията...' : 'Съобщение...'
+          }
         />
         <button className="btn btn-secondary" onClick={send}>
           Изпрати

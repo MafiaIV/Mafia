@@ -25,3 +25,11 @@ export function loadSession(code: string): StoredSession | null {
     return null;
   }
 }
+
+export function clearSession(code: string): void {
+  try {
+    localStorage.removeItem(key(code));
+  } catch {
+    // localStorage unavailable — nothing to clear
+  }
+}

@@ -1,20 +1,42 @@
 'use client';
 
-import { useState } from 'react';
-import { ROLES_BY_ID, type NightYourTurnPayload } from '@mafia/shared';
+import { useEffect, useState } from 'react';
+import {
+  ROLES_BY_ID,
+  type ChatMessagePayload,
+  type MafiaPicksPayload,
+  type NightYourTurnPayload,
+} from '@mafia/shared';
 import { getSocket } from '../lib/socket';
 import { Avatar } from './Avatar';
+import { ChatPanel } from './ChatPanel';
 
 export function NightOverlay({
   nightTurn,
   isWaiting,
+  myPlayerId,
+  mafiaPicks,
+  chatMessages,
 }: {
   nightTurn: NightYourTurnPayload | null;
   isWaiting: boolean;
+  myPlayerId: string;
+  mafiaPicks: MafiaPicksPayload['picks'];
+  chatMessages: ChatMessagePayload[];
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [witchChoice, setWitchChoice] = useState<'save' | 'poison' | 'none' | null>(null);
   const [submitted, setSubmitted] = useState(false);
+
+  const isMafia = nightTurn?.actingRole === 'mafia';
+
+  // Mafia can keep changing their pick, so reset the local "submitted" lock
+  // whenever a fresh turn starts instead of getting stuck on an old value.
+  useEffect(() => {
+    setSelectedId(null);
+    setWitchChoice(null);
+    setSubmitted(false);
+  }, [nightTurn?.actingRole]);
 
   if (!nightTurn) {
     return (
@@ -32,16 +54,20 @@ export function NightOverlay({
     ? nightTurn.candidates.find((c) => c.id === nightTurn.mafiaTargetId)?.name
     : null;
 
-  function submit() {
-    if (submitted) return;
-    setSubmitted(true);
+  function submit(targetId: string | null) {
     getSocket().emit('night:action', {
-      targetId: selectedId,
+      targetId,
       witchChoice: isWitch ? witchChoice ?? 'none' : undefined,
     });
+    if (!isMafia) setSubmitted(true);
   }
 
-  if (submitted) {
+  function pickMafiaTarget(targetId: string) {
+    setSelectedId(targetId);
+    submit(targetId);
+  }
+
+  if (submitted && !isMafia) {
     return (
       <div className="night-overlay">
         <div className="moon">🌙</div>
@@ -56,6 +82,10 @@ export function NightOverlay({
       <div className="moon">{role.icon}</div>
       <h2>{role.name} — твой ред</h2>
       <p className="hint">{role.description}</p>
+
+      {isMafia && nightTurn.mafiaTeammates && nightTurn.mafiaTeammates.length > 0 && (
+        <p className="hint">Твоите съучастници: {nightTurn.mafiaTeammates.map((m) => m.name).join(', ')}</p>
+      )}
 
       {isWitch && (
         <div className="witch-actions">
@@ -93,7 +123,7 @@ export function NightOverlay({
             <button
               key={c.id}
               className={`candidate-btn ${selectedId === c.id ? 'selected' : ''}`}
-              onClick={() => setSelectedId(c.id)}
+              onClick={() => (isMafia ? pickMafiaTarget(c.id) : setSelectedId(c.id))}
             >
               <Avatar seed={c.id} name={c.name} />
               <span>{c.name}</span>
@@ -102,18 +132,50 @@ export function NightOverlay({
         </div>
       )}
 
-      <div style={{ marginTop: 22, display: 'flex', gap: 10 }}>
-        <button className="btn btn-secondary" onClick={() => { setSelectedId(null); submit(); }}>
-          Пропусни
-        </button>
-        <button
-          className="btn btn-primary"
-          disabled={isWitch ? witchChoice === 'poison' && !selectedId : !selectedId}
-          onClick={submit}
-        >
-          Потвърди
-        </button>
-      </div>
+      {isMafia && (
+        <div className="mafia-picks-board">
+          <p className="hint" style={{ marginBottom: 6 }}>
+            Трябва всички да изберете един и същ човек, за да продължи нощта:
+          </p>
+          <div className="mafia-picks-list">
+            <span className="badge">
+              Ти: {selectedId ? nightTurn.candidates.find((c) => c.id === selectedId)?.name : '—'}
+            </span>
+            {mafiaPicks
+              .filter((p) => p.playerId !== myPlayerId)
+              .map((p) => (
+                <span key={p.playerId} className="badge">
+                  {nightTurn.mafiaTeammates?.find((m) => m.id === p.playerId)?.name ?? '?'}:{' '}
+                  {p.targetId ? nightTurn.candidates.find((c) => c.id === p.targetId)?.name : '—'}
+                </span>
+              ))}
+          </div>
+          <div className="mafia-chat-wrap">
+            <ChatPanel channel="mafia" messages={chatMessages} />
+          </div>
+        </div>
+      )}
+
+      {!isMafia && (
+        <div style={{ marginTop: 22, display: 'flex', gap: 10 }}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => {
+              setSelectedId(null);
+              submit(null);
+            }}
+          >
+            Пропусни
+          </button>
+          <button
+            className="btn btn-primary"
+            disabled={isWitch ? witchChoice === 'poison' && !selectedId : !selectedId}
+            onClick={() => submit(selectedId)}
+          >
+            Потвърди
+          </button>
+        </div>
+      )}
     </div>
   );
 }

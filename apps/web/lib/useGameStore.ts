@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import type {
   ChatMessagePayload,
   InvestigationResultPayload,
+  MafiaPicksPayload,
   NightYourTurnPayload,
   RoleId,
   RoomStateSummary,
@@ -19,6 +20,7 @@ interface GameStore {
   isNightWaiting: boolean;
   investigations: InvestigationResultPayload[];
   chatMessages: ChatMessagePayload[];
+  mafiaPicks: MafiaPicksPayload['picks'];
   error: string | null;
 
   setSession: (playerId: string, playerName: string) => void;
@@ -35,6 +37,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isNightWaiting: false,
   investigations: [],
   chatMessages: [],
+  mafiaPicks: [],
   error: null,
 
   setSession: (playerId, playerName) => set({ playerId, playerName }),
@@ -55,6 +58,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({ investigations: [...get().investigations, payload] });
     const onChatMessage = (payload: ChatMessagePayload) =>
       set({ chatMessages: [...get().chatMessages, payload] });
+    const onMafiaPicks = (payload: MafiaPicksPayload) => set({ mafiaPicks: payload.picks });
     const onRoomError = ({ error }: { error: string }) => set({ error });
 
     socket.on('room:update', onRoomUpdate);
@@ -63,6 +67,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     socket.on('night:waiting', onNightWaiting);
     socket.on('investigation:result', onInvestigation);
     socket.on('chat:message', onChatMessage);
+    socket.on('night:mafiaPicks', onMafiaPicks);
     socket.on('room:error', onRoomError);
 
     return () => {
@@ -72,6 +77,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       socket.off('night:waiting', onNightWaiting);
       socket.off('investigation:result', onInvestigation);
       socket.off('chat:message', onChatMessage);
+      socket.off('night:mafiaPicks', onMafiaPicks);
       socket.off('room:error', onRoomError);
     };
   },
