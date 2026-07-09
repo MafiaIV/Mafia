@@ -47,7 +47,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="center-page">
+    <div className="center-page home-hero">
       <div className="panel">
         <h1>🌙 Мафия Онлайн</h1>
         <div className="tabs">
