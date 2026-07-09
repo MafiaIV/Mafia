@@ -1,5 +1,5 @@
 :root {
-  --bg: #0f1115;
+  --bg: #0b0c10;
   --bg-elevated: #1a1d24;
   --bg-elevated-2: #23272f;
   --border: #2e333d;
@@ -9,6 +9,7 @@
   --accent-2: #4dabf7;
   --danger: #e03131;
   --radius: 12px;
+  --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 * {
@@ -19,13 +20,37 @@ html,
 body {
   padding: 0;
   margin: 0;
-  background: var(--bg);
   color: var(--text);
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background:
+    radial-gradient(ellipse 900px 500px at 50% -10%, rgba(240, 185, 59, 0.06), transparent 60%),
+    radial-gradient(ellipse 700px 500px at 90% 10%, rgba(77, 171, 247, 0.05), transparent 55%),
+    var(--bg);
+  background-attachment: fixed;
 }
 
 button {
   font-family: inherit;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .app-shell {
@@ -49,6 +74,8 @@ button {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 28px;
+  box-shadow: var(--shadow-soft);
+  animation: fade-in-up 0.4s ease;
 }
 
 .panel h1 {
@@ -88,7 +115,7 @@ button {
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
 }
 
 .btn:disabled {
@@ -100,16 +127,26 @@ button {
   opacity: 0.88;
 }
 
+.btn:not(:disabled):active {
+  transform: scale(0.97);
+}
+
 .btn-primary {
   background: var(--accent);
   color: #1a1200;
   width: 100%;
+  box-shadow: 0 4px 16px rgba(240, 185, 59, 0.25);
 }
 
 .btn-secondary {
   background: var(--bg-elevated-2);
   color: var(--text);
   border: 1px solid var(--border);
+}
+
+.btn-secondary.selected {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .tabs {
@@ -127,6 +164,7 @@ button {
   cursor: pointer;
   color: var(--text-muted);
   background: transparent;
+  transition: all 0.15s ease;
 }
 
 .tab.active {
@@ -139,6 +177,48 @@ button {
   color: var(--danger);
   font-size: 13px;
   margin-top: 8px;
+}
+
+/* Voice chat */
+.voice-chat {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 10px 20px 0;
+}
+
+.voice-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.voice-peer-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.voice-peer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-elevated-2);
+  border: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.voice-peer-chip.self {
+  border-color: var(--accent-2);
+  color: var(--accent-2);
 }
 
 /* Role deck (top bar) */
@@ -160,6 +240,14 @@ button {
   padding: 8px 10px;
   text-align: center;
   min-width: 74px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.02), 0 6px 18px -6px var(--role-color, transparent);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  animation: fade-in-up 0.35s ease both;
+}
+
+.role-deck .role-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 10px 22px -6px var(--role-color, transparent);
 }
 
 .role-card .icon {
@@ -184,6 +272,7 @@ button {
   display: flex;
   gap: 12px;
   align-items: center;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03), 0 10px 30px -8px var(--role-color, transparent);
 }
 
 .role-card.full .icon {
@@ -215,11 +304,13 @@ button {
   background: linear-gradient(to top, rgba(10, 11, 14, 0.98), rgba(10, 11, 14, 0.75));
   border-top: 1px solid var(--border);
   z-index: 20;
+  animation: fade-in-up 0.4s ease;
 }
 
 .game-body {
   flex: 1;
   padding-bottom: 110px;
+  animation: fade-in 0.3s ease;
 }
 
 /* Avatar */
@@ -231,6 +322,7 @@ button {
   font-weight: 700;
   color: #10131a;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 .player-row {
@@ -239,6 +331,11 @@ button {
   gap: 10px;
   padding: 8px 10px;
   border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.player-row:hover {
+  background: var(--bg-elevated-2);
 }
 
 .player-row .meta {
@@ -297,6 +394,7 @@ button {
   max-width: 640px;
   margin: 0 auto;
   padding: 20px;
+  animation: fade-in-up 0.35s ease both;
 }
 
 .section h2 {
@@ -310,6 +408,16 @@ button {
   margin-bottom: 16px;
 }
 
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(240, 185, 59, 0);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(240, 185, 59, 0.18);
+  }
+}
+
 .room-code {
   font-size: 32px;
   letter-spacing: 6px;
@@ -320,6 +428,7 @@ button {
   border-radius: var(--radius);
   border: 1px dashed var(--accent);
   margin-bottom: 18px;
+  animation: glow-pulse 2.4s ease-in-out infinite;
 }
 
 .player-list {
@@ -354,6 +463,26 @@ button {
 }
 
 /* Night overlay */
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes moon-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
 .night-overlay {
   position: fixed;
   inset: 0;
@@ -365,12 +494,43 @@ button {
   justify-content: center;
   padding: 24px;
   text-align: center;
+  animation: fade-in 0.5s ease;
+  overflow: hidden;
+}
+
+.night-overlay::before,
+.night-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(1.5px 1.5px at 10% 20%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 25% 65%, #fff, transparent),
+    radial-gradient(1px 1px at 40% 15%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 60% 80%, #fff, transparent),
+    radial-gradient(1px 1px at 75% 35%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 85% 60%, #fff, transparent),
+    radial-gradient(1px 1px at 92% 20%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 15% 85%, #fff, transparent);
+  opacity: 0.5;
+  animation: twinkle 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.night-overlay::after {
+  animation-delay: 2s;
+  animation-duration: 5s;
 }
 
 .night-overlay .moon {
   font-size: 48px;
   margin-bottom: 14px;
   opacity: 0.85;
+  animation: moon-float 3.5s ease-in-out infinite;
+  filter: drop-shadow(0 0 16px rgba(240, 185, 59, 0.35));
+}
+
+.night-overlay > * {
+  position: relative;
 }
 
 .night-overlay h2 {
@@ -403,15 +563,18 @@ button {
   gap: 6px;
   cursor: pointer;
   color: var(--text);
+  transition: all 0.15s ease;
 }
 
 .candidate-btn:hover {
   border-color: var(--accent-2);
+  transform: translateY(-2px);
 }
 
 .candidate-btn.selected {
   border-color: var(--accent);
   background: var(--bg-elevated-2);
+  box-shadow: 0 0 0 1px var(--accent), 0 6px 16px -4px rgba(240, 185, 59, 0.35);
 }
 
 .witch-actions {
@@ -473,6 +636,7 @@ button {
 }
 
 .vote-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -481,10 +645,29 @@ button {
   border: 1px solid var(--border);
   background: var(--bg-elevated);
   cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.vote-row:hover {
+  border-color: var(--accent-2);
 }
 
 .vote-row.selected {
   border-color: var(--accent);
+}
+
+.vote-row .fill-bar {
+  position: absolute;
+  inset: 0;
+  width: var(--fill, 0%);
+  background: linear-gradient(90deg, rgba(224, 49, 49, 0.18), rgba(224, 49, 49, 0.05));
+  transition: width 0.25s ease;
+  pointer-events: none;
+}
+
+.vote-row > * {
+  position: relative;
 }
 
 .vote-count {
@@ -494,13 +677,26 @@ button {
 }
 
 /* Game over */
+@keyframes banner-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .winner-banner {
   text-align: center;
   padding: 30px 20px;
   border-radius: var(--radius);
-  background: var(--bg-elevated);
+  background: radial-gradient(ellipse at 50% 0%, rgba(240, 185, 59, 0.12), var(--bg-elevated) 70%);
   border: 1px solid var(--accent);
   margin-bottom: 20px;
+  box-shadow: 0 0 40px -10px rgba(240, 185, 59, 0.3);
+  animation: banner-in 0.5s cubic-bezier(0.19, 1, 0.22, 1);
 }
 
 .winner-banner .title {
@@ -513,4 +709,8 @@ button {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 10px;
+}
+
+.reveal-grid > div {
+  animation: fade-in-up 0.35s ease both;
 }

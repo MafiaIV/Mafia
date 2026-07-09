@@ -79,6 +79,26 @@ export function registerHandlers(io: IoServer, roomManager: RoomManager): void {
       getCurrentRoom()?.recordChatMessage(data.playerId, text.trim().slice(0, 500));
     });
 
+    socket.on('voice:join', () => {
+      if (!data.playerId) return;
+      getCurrentRoom()?.joinVoice(data.playerId);
+    });
+
+    socket.on('voice:leave', () => {
+      if (!data.playerId) return;
+      getCurrentRoom()?.leaveVoice(data.playerId);
+    });
+
+    socket.on('voice:signal', ({ toPlayerId, data: signalData }) => {
+      if (!data.playerId) return;
+      getCurrentRoom()?.relayVoiceSignal(data.playerId, toPlayerId, signalData);
+    });
+
+    socket.on('voice:mute', ({ muted }) => {
+      if (!data.playerId) return;
+      getCurrentRoom()?.setVoiceMute(data.playerId, muted);
+    });
+
     socket.on('disconnect', () => {
       const room = getCurrentRoom();
       room?.markDisconnected(socket.id);

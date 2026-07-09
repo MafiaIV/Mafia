@@ -81,6 +81,8 @@ export class GameRoom {
   private lastNightResult: { diedPlayerIds: string[] } | null = null;
   private lastVoteResult: { lynchedPlayerId: string | null } | null = null;
   private winner: { team: Team | 'jester'; playerIds: string[] } | null = null;
+  /** playerId -> the voice channel they're currently registered in, if any. */
+  private voiceChannel = new Map<string, 'alive' | 'dead'>();
 
   constructor(code: string, io: IoServer) {
     this.code = code;
@@ -135,7 +137,65 @@ export class GameRoom {
     const player = [...this.players.values()].find((p) => p.socketId === socketId);
     if (!player) return;
     player.connected = false;
+    this.removeFromVoice(player.id);
     this.broadcastState();
+  }
+
+  joinVoice(playerId: string): void {
+    const player = this.players.get(playerId);
+    if (!player || this.voiceChannel.has(playerId)) return;
+    const channel = player.alive ? 'alive' : 'dead';
+    const peers = [...this.voiceChannel.entries()]
+      .filter(([, ch]) => ch === channel)
+      .map(([id]) => id)
+      .map((id) => this.players.get(id)!)
+      .filter(Boolean)
+      .map((p) => ({ id: p.id, name: p.name }));
+    this.voiceChannel.set(playerId, channel);
+    if (player.socketId) {
+      this.io.to(player.socketId).emit('voice:peers', { peers });
+    }
+    for (const peer of peers) {
+      const peerSocket = this.players.get(peer.id)?.socketId;
+      if (peerSocket) {
+        this.io.to(peerSocket).emit('voice:peerJoined', { id: playerId, name: player.name });
+      }
+    }
+  }
+
+  leaveVoice(playerId: string): void {
+    this.removeFromVoice(playerId);
+  }
+
+  private removeFromVoice(playerId: string): void {
+    const channel = this.voiceChannel.get(playerId);
+    if (!channel) return;
+    this.voiceChannel.delete(playerId);
+    for (const [otherId, otherChannel] of this.voiceChannel) {
+      if (otherChannel !== channel) continue;
+      const otherSocket = this.players.get(otherId)?.socketId;
+      if (otherSocket) {
+        this.io.to(otherSocket).emit('voice:peerLeft', { id: playerId });
+      }
+    }
+  }
+
+  relayVoiceSignal(fromPlayerId: string, toPlayerId: string, data: unknown): void {
+    const target = this.players.get(toPlayerId);
+    if (!target?.socketId) return;
+    this.io.to(target.socketId).emit('voice:signal', { fromPlayerId, data });
+  }
+
+  setVoiceMute(playerId: string, muted: boolean): void {
+    const channel = this.voiceChannel.get(playerId);
+    if (!channel) return;
+    for (const [otherId, otherChannel] of this.voiceChannel) {
+      if (otherChannel !== channel || otherId === playerId) continue;
+      const otherSocket = this.players.get(otherId)?.socketId;
+      if (otherSocket) {
+        this.io.to(otherSocket).emit('voice:muteChanged', { id: playerId, muted });
+      }
+    }
   }
 
   isEmpty(): boolean {
@@ -336,6 +396,7 @@ export class GameRoom {
           this.io.in(victim.socketId).socketsLeave(`${this.code}:alive`);
           this.io.in(victim.socketId).socketsJoin(`${this.code}:dead`);
         }
+        this.removeFromVoice(victimId);
       }
     }
 
@@ -416,6 +477,7 @@ export class GameRoom {
           this.io.in(lynched.socketId).socketsLeave(`${this.code}:alive`);
           this.io.in(lynched.socketId).socketsJoin(`${this.code}:dead`);
         }
+        this.removeFromVoice(lynched.id);
         if (lynched.roleId === 'jester') {
           this.winner = { team: 'jester', playerIds: [lynched.id] };
           this.phase = 'game_over';

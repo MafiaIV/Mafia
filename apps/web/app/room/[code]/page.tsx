@@ -12,6 +12,7 @@ import { NightOverlay } from '../../../components/NightOverlay';
 import { DayDiscussion } from '../../../components/DayDiscussion';
 import { VotingPanel } from '../../../components/VotingPanel';
 import { GameOverScreen } from '../../../components/GameOverScreen';
+import { VoiceChat } from '../../../components/VoiceChat';
 
 type Status = 'checking' | 'need-join' | 'joined';
 
@@ -85,9 +86,13 @@ export default function RoomPage() {
     return <div className="center-page">Зареждане на стаята...</div>;
   }
 
+  const me = roomState.players.find((p) => p.id === playerId);
+  const showVoice = roomState.phase !== 'lobby' && roomState.phase !== 'game_over';
+
   return (
     <div className="app-shell">
       {roomState.phase !== 'lobby' && <RoleDeck roleDeck={roomState.roleDeck} />}
+      {showVoice && <VoiceChat channel={me?.alive === false ? 'dead' : 'alive'} />}
       <div className="game-body">
         {roomState.phase === 'lobby' && <Lobby roomState={roomState} myPlayerId={playerId} />}
 

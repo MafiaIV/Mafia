@@ -13,6 +13,7 @@ export function VotingPanel({ roomState, myPlayerId }: { roomState: RoomStateSum
 
   const candidates = roomState.players.filter((p) => p.alive && p.id !== myPlayerId);
   const canVote = !!me?.alive;
+  const totalVotes = Object.keys(votes).length;
 
   function vote(targetId: string | null) {
     getSocket().emit('day:vote', { targetId });
@@ -23,17 +24,22 @@ export function VotingPanel({ roomState, myPlayerId }: { roomState: RoomStateSum
       <h2>Гласуване</h2>
       <p className="hint">Кого линчувате днес?</p>
       <div className="vote-list">
-        {candidates.map((p) => (
-          <div
-            key={p.id}
-            className={`vote-row ${myVote === p.id ? 'selected' : ''}`}
-            onClick={() => canVote && vote(p.id)}
-          >
-            <Avatar seed={p.avatarSeed} name={p.name} />
-            <span>{p.name}</span>
-            <span className="vote-count">{counts.get(p.id) ?? 0} гласа</span>
-          </div>
-        ))}
+        {candidates.map((p) => {
+          const count = counts.get(p.id) ?? 0;
+          const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+          return (
+            <div
+              key={p.id}
+              className={`vote-row ${myVote === p.id ? 'selected' : ''}`}
+              onClick={() => canVote && vote(p.id)}
+            >
+              <div className="fill-bar" style={{ ['--fill' as string]: `${pct}%` }} />
+              <Avatar seed={p.avatarSeed} name={p.name} />
+              <span>{p.name}</span>
+              <span className="vote-count">{count} гласа</span>
+            </div>
+          );
+        })}
       </div>
       {canVote ? (
         <button className="btn btn-secondary" onClick={() => vote(null)}>
