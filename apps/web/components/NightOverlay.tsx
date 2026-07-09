@@ -117,43 +117,57 @@ export function NightOverlay({
         </div>
       )}
 
-      {(!isWitch || witchChoice === 'poison') && (
-        <div className="candidate-grid" style={{ marginTop: 18 }}>
-          {nightTurn.candidates.map((c) => (
-            <button
-              key={c.id}
-              className={`candidate-btn ${selectedId === c.id ? 'selected' : ''}`}
-              onClick={() => (isMafia ? pickMafiaTarget(c.id) : setSelectedId(c.id))}
-            >
-              <Avatar seed={c.id} name={c.name} />
-              <span>{c.name}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {isMafia && (
-        <div className="mafia-picks-board">
-          <p className="hint" style={{ marginBottom: 6 }}>
-            Трябва всички да изберете един и същ човек, за да продължи нощта:
-          </p>
-          <div className="mafia-picks-list">
-            <span className="badge">
-              Ти: {selectedId ? nightTurn.candidates.find((c) => c.id === selectedId)?.name : '—'}
-            </span>
-            {mafiaPicks
-              .filter((p) => p.playerId !== myPlayerId)
-              .map((p) => (
-                <span key={p.playerId} className="badge">
-                  {nightTurn.mafiaTeammates?.find((m) => m.id === p.playerId)?.name ?? '?'}:{' '}
-                  {p.targetId ? nightTurn.candidates.find((c) => c.id === p.targetId)?.name : '—'}
-                </span>
+      {isMafia ? (
+        <div className="mafia-turn-layout">
+          <div className="mafia-turn-left">
+            <div className="candidate-grid">
+              {nightTurn.candidates.map((c) => (
+                <button
+                  key={c.id}
+                  className={`candidate-btn ${selectedId === c.id ? 'selected' : ''}`}
+                  onClick={() => pickMafiaTarget(c.id)}
+                >
+                  <Avatar seed={c.id} name={c.name} />
+                  <span>{c.name}</span>
+                </button>
               ))}
+            </div>
+            <p className="hint" style={{ margin: '14px 0 6px' }}>
+              Трябва всички да изберете един и същ човек, за да продължи нощта:
+            </p>
+            <div className="mafia-picks-list">
+              <span className="badge">
+                Ти: {selectedId ? nightTurn.candidates.find((c) => c.id === selectedId)?.name : '—'}
+              </span>
+              {mafiaPicks
+                .filter((p) => p.playerId !== myPlayerId)
+                .map((p) => (
+                  <span key={p.playerId} className="badge">
+                    {nightTurn.mafiaTeammates?.find((m) => m.id === p.playerId)?.name ?? '?'}:{' '}
+                    {p.targetId ? nightTurn.candidates.find((c) => c.id === p.targetId)?.name : '—'}
+                  </span>
+                ))}
+            </div>
           </div>
-          <div className="mafia-chat-wrap">
+          <div className="mafia-turn-right">
             <ChatPanel channel="mafia" messages={chatMessages} />
           </div>
         </div>
+      ) : (
+        (!isWitch || witchChoice === 'poison') && (
+          <div className="candidate-grid" style={{ marginTop: 18 }}>
+            {nightTurn.candidates.map((c) => (
+              <button
+                key={c.id}
+                className={`candidate-btn ${selectedId === c.id ? 'selected' : ''}`}
+                onClick={() => setSelectedId(c.id)}
+              >
+                <Avatar seed={c.id} name={c.name} />
+                <span>{c.name}</span>
+              </button>
+            ))}
+          </div>
+        )
       )}
 
       {!isMafia && (

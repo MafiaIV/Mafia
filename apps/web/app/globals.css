@@ -361,11 +361,11 @@ button {
 @keyframes role-reveal-in {
   from {
     opacity: 0;
-    transform: translate(-42vw, -42vh) scale(0.6);
+    transform: translate(-37vw, -22vh) scale(0.6);
   }
   to {
     opacity: 1;
-    transform: translate(-42vw, -42vh) scale(3.4);
+    transform: translate(-37vw, -22vh) scale(3.4);
   }
 }
 
@@ -672,27 +672,36 @@ button {
   justify-content: center;
 }
 
-.mafia-picks-board {
-  margin-top: 22px;
+.mafia-turn-layout {
+  display: flex;
+  gap: 24px;
+  margin-top: 18px;
   width: 100%;
-  max-width: 480px;
+  max-width: 760px;
+  align-items: flex-start;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.mafia-turn-left {
+  flex: 1 1 320px;
+  max-width: 420px;
+}
+
+.mafia-turn-right {
+  flex: 1 1 280px;
+  max-width: 320px;
+  width: 100%;
 }
 
 .mafia-picks-list {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  justify-content: center;
-  margin-bottom: 16px;
 }
 
-.mafia-chat-wrap {
-  max-width: 420px;
-  margin: 0 auto;
-}
-
-.mafia-chat-wrap .chat-panel {
-  height: 220px;
+.mafia-turn-right .chat-panel {
+  height: 260px;
 }
 
 /* Chat */
