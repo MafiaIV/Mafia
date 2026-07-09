@@ -227,95 +227,115 @@ button {
   color: var(--accent-2);
 }
 
-/* Role deck (top bar) */
-.role-deck {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding: 12px 16px;
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border);
-}
-
-.role-card {
-  border-radius: 10px;
-  background: var(--bg-elevated-2);
-  border: 1px solid var(--border);
-  border-top: 3px solid var(--role-color, var(--accent));
-  flex-shrink: 0;
-  padding: 8px 10px;
-  text-align: center;
-  min-width: 74px;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.02), 0 6px 18px -6px var(--role-color, transparent);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  animation: fade-in-up 0.35s ease both;
-}
-
-.role-deck .role-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 10px 22px -6px var(--role-color, transparent);
-}
-
-.role-card .icon {
-  font-size: 26px;
-  line-height: 1;
-}
-
-.role-card .name {
-  font-size: 11px;
-  margin-top: 4px;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.role-card.full {
-  min-width: 0;
-  width: 100%;
-  max-width: 340px;
-  padding: 14px 16px;
-  border-top-width: 4px;
-  text-align: left;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03), 0 10px 30px -8px var(--role-color, transparent);
-}
-
-.role-card.full .icon {
-  font-size: 38px;
-}
-
-.role-card.full .name {
-  font-size: 16px;
-  color: var(--text);
-  font-weight: 700;
-  margin: 0 0 4px;
-}
-
-.role-card.full .desc {
-  font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.4;
-}
-
-/* Bottom player bar */
-.player-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+/* Role deck (top bar) — a fanned, overlapping hand of role cards. Click any
+   card to zoom it; the game deals with duplicates (e.g. multiple mafia) by
+   just repeating that role's image. */
+.role-deck-fan {
   display: flex;
   justify-content: center;
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-  background: linear-gradient(to top, rgba(10, 11, 14, 0.98), rgba(10, 11, 14, 0.75));
-  border-top: 1px solid var(--border);
-  z-index: 20;
-  animation: fade-in-up 0.4s ease;
+  align-items: flex-start;
+  padding: 18px 20px 26px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.role-thumb {
+  width: 56px;
+  border-radius: 8px;
+  margin-left: -20px;
+  flex-shrink: 0;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  transform-origin: bottom center;
+}
+
+.role-thumb:first-child {
+  margin-left: 0;
+}
+
+.role-thumb:hover {
+  transform: translateY(-12px) scale(1.15) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* Click-to-zoom overlay, shared by the deck and the corner role badge */
+.role-zoom-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 6, 10, 0.82);
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fade-in 0.2s ease;
+  cursor: pointer;
+}
+
+.role-zoom-image {
+  max-width: min(90vw, 360px);
+  max-height: 85vh;
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  cursor: default;
+  animation: fade-in-up 0.25s ease;
+}
+
+.role-card-img {
+  width: 100%;
+  max-width: 140px;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+/* Role reveal: big centered card on assignment, then it shrinks into a
+   persistent corner badge for the rest of the game. */
+.role-reveal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 6, 10, 0.75);
+  z-index: 65;
+  animation: fade-in 0.3s ease;
+}
+
+@keyframes role-reveal-in {
+  from {
+    opacity: 0;
+    transform: translate(-42vw, -42vh) scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-42vw, -42vh) scale(3.4);
+  }
+}
+
+.my-role-badge {
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  width: 90px;
+  z-index: 70;
+  cursor: pointer;
+  transform-origin: bottom right;
+  transition: transform 0.9s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+.my-role-badge img {
+  width: 100%;
+  display: block;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.my-role-badge.revealing {
+  animation: role-reveal-in 0.7s cubic-bezier(0.19, 1, 0.22, 1) forwards;
 }
 
 .game-body {
   flex: 1;
-  padding-bottom: 110px;
+  padding-bottom: 24px;
   animation: fade-in 0.3s ease;
 }
 

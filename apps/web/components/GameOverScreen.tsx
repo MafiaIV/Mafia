@@ -29,7 +29,7 @@ export function GameOverScreen({ roomState }: { roomState: RoomStateSummary }) {
                 <Avatar seed={p.avatarSeed} name={p.name} size={28} />
                 <span>{p.name}</span>
               </div>
-              <RoleCard roleId={roleId} variant="compact" />
+              <RoleCard roleId={roleId} />
             </div>
           );
         })}

@@ -5,8 +5,10 @@ import { useParams } from 'next/navigation';
 import { getSocket } from '../../../lib/socket';
 import { useGameStore } from '../../../lib/useGameStore';
 import { loadSession, saveSession } from '../../../lib/session';
+import type { RoleId } from '@mafia/shared';
 import { RoleDeck } from '../../../components/RoleDeck';
-import { PlayerRoleBar } from '../../../components/PlayerRoleBar';
+import { MyRoleBadge } from '../../../components/MyRoleBadge';
+import { RoleZoomOverlay } from '../../../components/RoleZoomOverlay';
 import { Lobby } from '../../../components/Lobby';
 import { NightOverlay } from '../../../components/NightOverlay';
 import { DayDiscussion } from '../../../components/DayDiscussion';
@@ -23,6 +25,7 @@ export default function RoomPage() {
   const [status, setStatus] = useState<Status>('checking');
   const [joinName, setJoinName] = useState('');
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [zoomedRole, setZoomedRole] = useState<RoleId | null>(null);
 
   useEffect(() => {
     const unbind = store.bindListeners();
@@ -91,7 +94,7 @@ export default function RoomPage() {
 
   return (
     <div className="app-shell">
-      {roomState.phase !== 'lobby' && <RoleDeck roleDeck={roomState.roleDeck} />}
+      {roomState.phase !== 'lobby' && <RoleDeck roleDeck={roomState.roleDeck} onZoom={setZoomedRole} />}
       {showVoice && <VoiceChat channel={me?.alive === false ? 'dead' : 'alive'} />}
       <div className="game-body">
         {roomState.phase === 'lobby' && <Lobby roomState={roomState} myPlayerId={playerId} />}
@@ -130,7 +133,10 @@ export default function RoomPage() {
 
         {roomState.phase === 'game_over' && <GameOverScreen roomState={roomState} />}
       </div>
-      {roomState.phase !== 'lobby' && roomState.phase !== 'game_over' && <PlayerRoleBar roleId={myRole} />}
+      {roomState.phase !== 'lobby' && roomState.phase !== 'game_over' && (
+        <MyRoleBadge roleId={myRole} onZoom={setZoomedRole} />
+      )}
+      <RoleZoomOverlay roleId={zoomedRole} onClose={() => setZoomedRole(null)} />
     </div>
   );
 }
