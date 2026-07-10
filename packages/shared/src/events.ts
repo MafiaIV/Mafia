@@ -44,6 +44,8 @@ export interface ServerToClientEvents {
   'role:assigned': (payload: RoleAssignedPayload) => void;
   'night:yourTurn': (payload: NightYourTurnPayload) => void;
   'night:waiting': () => void;
+  /** Sent instead of night:waiting when the reason is specifically "the seductress blocked you". */
+  'night:blocked': () => void;
   'night:mafiaPicks': (payload: MafiaPicksPayload) => void;
   'investigation:result': (payload: InvestigationResultPayload) => void;
   'chat:message': (payload: ChatMessagePayload) => void;
@@ -52,4 +54,8 @@ export interface ServerToClientEvents {
   'voice:peerLeft': (payload: { id: string }) => void;
   'voice:signal': (payload: VoiceSignalRelayPayload) => void;
   'voice:muteChanged': (payload: { id: string; muted: boolean }) => void;
+  /** One-way: dead players silently listen in on the alive channel. */
+  'voice:listenPeers': (payload: { peers: VoicePeerInfo[] }) => void;
+  'voice:aliveMemberJoined': (payload: VoicePeerInfo) => void;
+  'voice:aliveMemberLeft': (payload: { id: string }) => void;
 }

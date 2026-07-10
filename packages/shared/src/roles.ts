@@ -51,14 +51,15 @@ export const ROLES: RoleDefinition[] = [
     description: 'Нощем избира заедно с останалите мафиоти жертва за убийство.',
   },
   {
-    id: 'detective',
-    name: 'Детектив',
-    icon: '🔍',
-    color: '#1971c2',
+    id: 'bodyguard',
+    name: 'Бодигард',
+    icon: '🛡️',
+    color: '#5c940d',
     team: 'good',
     actsAtNight: true,
     nightOrder: 3,
-    description: 'Нощем разследва един играч и разбира дали е зъл, или невинен.',
+    description:
+      'Нощем пази играч — ако мафията го нападне, бодигардът умира вместо него (еднократно).',
   },
   {
     id: 'doctor',
@@ -71,17 +72,6 @@ export const ROLES: RoleDefinition[] = [
     description: 'Нощем предпазва избран играч от убийство тази нощ.',
   },
   {
-    id: 'bodyguard',
-    name: 'Бодигард',
-    icon: '🛡️',
-    color: '#5c940d',
-    team: 'good',
-    actsAtNight: true,
-    nightOrder: 4,
-    description:
-      'Нощем пази играч — ако мафията го нападне, бодигардът умира вместо него (еднократно).',
-  },
-  {
     id: 'witch',
     name: 'Вещица',
     icon: '🧪',
@@ -91,6 +81,16 @@ export const ROLES: RoleDefinition[] = [
     nightOrder: 5,
     description:
       'Има по едно еднократно "лек" (спасява жертвата на мафията) и "отрова" (убива по избор) за цялата игра.',
+  },
+  {
+    id: 'detective',
+    name: 'Детектив',
+    icon: '🔍',
+    color: '#1971c2',
+    team: 'good',
+    actsAtNight: true,
+    nightOrder: 6,
+    description: 'Нощем разследва един играч и разбира дали е зъл, или невинен.',
   },
   {
     id: 'villager',

@@ -84,7 +84,8 @@ export default function RoomPage() {
     );
   }
 
-  const { roomState, myRole, playerId, nightTurn, isNightWaiting, chatMessages, mafiaPicks } = store;
+  const { roomState, myRole, playerId, nightTurn, isNightWaiting, isNightBlocked, chatMessages, mafiaPicks, investigations } =
+    store;
 
   if (!roomState || !playerId) {
     return <div className="center-page">Зареждане на стаята...</div>;
@@ -120,9 +121,11 @@ export default function RoomPage() {
           <NightOverlay
             nightTurn={nightTurn}
             isWaiting={isNightWaiting}
+            isBlocked={isNightBlocked}
             myPlayerId={playerId}
             mafiaPicks={mafiaPicks}
             chatMessages={chatMessages}
+            latestInvestigation={investigations.length > 0 ? investigations[investigations.length - 1] : null}
           />
         )}
 

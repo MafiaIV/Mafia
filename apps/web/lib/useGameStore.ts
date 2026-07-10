@@ -18,6 +18,7 @@ interface GameStore {
   myRole: RoleId | null;
   nightTurn: NightYourTurnPayload | null;
   isNightWaiting: boolean;
+  isNightBlocked: boolean;
   investigations: InvestigationResultPayload[];
   chatMessages: ChatMessagePayload[];
   mafiaPicks: MafiaPicksPayload['picks'];
@@ -35,6 +36,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   myRole: null,
   nightTurn: null,
   isNightWaiting: false,
+  isNightBlocked: false,
   investigations: [],
   chatMessages: [],
   mafiaPicks: [],
@@ -48,12 +50,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const onRoomUpdate = (state: RoomStateSummary) => {
       set({ roomState: state });
-      if (state.phase !== 'night') set({ nightTurn: null, isNightWaiting: false });
+      if (state.phase !== 'night') set({ nightTurn: null, isNightWaiting: false, isNightBlocked: false });
     };
     const onRoleAssigned = ({ roleId }: { roleId: RoleId }) => set({ myRole: roleId });
     const onNightYourTurn = (payload: NightYourTurnPayload) =>
-      set({ nightTurn: payload, isNightWaiting: false });
-    const onNightWaiting = () => set({ nightTurn: null, isNightWaiting: true });
+      set({ nightTurn: payload, isNightWaiting: false, isNightBlocked: false });
+    const onNightWaiting = () => set({ nightTurn: null, isNightWaiting: true, isNightBlocked: false });
+    const onNightBlocked = () => set({ nightTurn: null, isNightWaiting: false, isNightBlocked: true });
     const onInvestigation = (payload: InvestigationResultPayload) =>
       set({ investigations: [...get().investigations, payload] });
     const onChatMessage = (payload: ChatMessagePayload) =>
@@ -65,6 +68,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     socket.on('role:assigned', onRoleAssigned);
     socket.on('night:yourTurn', onNightYourTurn);
     socket.on('night:waiting', onNightWaiting);
+    socket.on('night:blocked', onNightBlocked);
     socket.on('investigation:result', onInvestigation);
     socket.on('chat:message', onChatMessage);
     socket.on('night:mafiaPicks', onMafiaPicks);
@@ -75,6 +79,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       socket.off('role:assigned', onRoleAssigned);
       socket.off('night:yourTurn', onNightYourTurn);
       socket.off('night:waiting', onNightWaiting);
+      socket.off('night:blocked', onNightBlocked);
       socket.off('investigation:result', onInvestigation);
       socket.off('chat:message', onChatMessage);
       socket.off('night:mafiaPicks', onMafiaPicks);

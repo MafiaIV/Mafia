@@ -12,7 +12,7 @@ export function GameFooter({
   showNewGame: boolean;
   onNewGame: () => void;
 }) {
-  const { joined, muted, peers, error, join, leave, toggleMute } = useVoiceChat();
+  const { joined, muted, peers, ghostStreams, error, join, leave, toggleMute } = useVoiceChat();
   const prevChannel = useRef(channel);
 
   useEffect(() => {
@@ -41,6 +41,7 @@ export function GameFooter({
               Изключи микрофон
             </button>
             <span className="hint">{peers.length > 0 ? `${peers.length + 1} в разговора` : 'Само ти засега'}</span>
+            {channel === 'dead' && <span className="hint">👻 Чуваш живите, те не чуват теб</span>}
           </>
         )}
         {error && <span className="error-text">{error}</span>}
@@ -56,6 +57,15 @@ export function GameFooter({
               />
             ),
         )}
+        {ghostStreams.map((stream, i) => (
+          <audio
+            key={i}
+            autoPlay
+            ref={(el) => {
+              if (el && el.srcObject !== stream) el.srcObject = stream;
+            }}
+          />
+        ))}
       </div>
       {showNewGame && (
         <button className="btn btn-primary footer-new-game-btn" onClick={onNewGame}>

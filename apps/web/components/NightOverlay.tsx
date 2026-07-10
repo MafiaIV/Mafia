@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   ROLES_BY_ID,
   type ChatMessagePayload,
+  type InvestigationResultPayload,
   type MafiaPicksPayload,
   type NightYourTurnPayload,
 } from '@mafia/shared';
@@ -14,21 +15,27 @@ import { ChatPanel } from './ChatPanel';
 export function NightOverlay({
   nightTurn,
   isWaiting,
+  isBlocked,
   myPlayerId,
   mafiaPicks,
   chatMessages,
+  latestInvestigation,
 }: {
   nightTurn: NightYourTurnPayload | null;
   isWaiting: boolean;
+  isBlocked: boolean;
   myPlayerId: string;
   mafiaPicks: MafiaPicksPayload['picks'];
   chatMessages: ChatMessagePayload[];
+  latestInvestigation: InvestigationResultPayload | null;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [witchChoice, setWitchChoice] = useState<'save' | 'poison' | 'none' | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [awaitingResultAck, setAwaitingResultAck] = useState(false);
 
   const isMafia = nightTurn?.actingRole === 'mafia';
+  const isDetective = nightTurn?.actingRole === 'detective';
 
   // Mafia can keep changing their pick, so reset the local "submitted" lock
   // whenever a fresh turn starts instead of getting stuck on an old value.
@@ -36,7 +43,18 @@ export function NightOverlay({
     setSelectedId(null);
     setWitchChoice(null);
     setSubmitted(false);
+    setAwaitingResultAck(false);
   }, [nightTurn?.actingRole]);
+
+  if (isBlocked) {
+    return (
+      <div className="night-overlay">
+        <div className="moon">🔒</div>
+        <h2>Тази нощ не можеш да действаш</h2>
+        <p className="hint">Някой те посети тази нощ и блокира способността ти. Изчакай останалите.</p>
+      </div>
+    );
+  }
 
   if (!nightTurn) {
     return (
@@ -59,12 +77,37 @@ export function NightOverlay({
       targetId,
       witchChoice: isWitch ? witchChoice ?? 'none' : undefined,
     });
-    if (!isMafia) setSubmitted(true);
+    if (isMafia) return;
+    if (isDetective && targetId) {
+      setAwaitingResultAck(true);
+    } else {
+      setSubmitted(true);
+    }
   }
 
   function pickMafiaTarget(targetId: string) {
     setSelectedId(targetId);
     submit(targetId);
+  }
+
+  if (awaitingResultAck && isDetective) {
+    const targetName = nightTurn.candidates.find((c) => c.id === selectedId)?.name ?? '?';
+    return (
+      <div className="night-overlay">
+        <div className="moon">🔍</div>
+        <h2>Резултат от разследването</h2>
+        <p className="hint">
+          {targetName} е{' '}
+          <strong style={{ color: latestInvestigation?.isEvil ? 'var(--danger)' : 'var(--accent-2)' }}>
+            {latestInvestigation?.isEvil ? 'мафия' : 'не е мафия'}
+          </strong>
+          .
+        </p>
+        <button className="btn btn-primary" style={{ maxWidth: 200 }} onClick={() => setSubmitted(true)}>
+          Готово
+        </button>
+      </div>
+    );
   }
 
   if (submitted && !isMafia) {

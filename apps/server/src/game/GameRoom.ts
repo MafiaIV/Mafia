@@ -83,6 +83,8 @@ export class GameRoom {
   private winner: { team: Team | 'jester'; playerIds: string[] } | null = null;
   /** playerId -> the voice channel they're currently registered in, if any. */
   private voiceChannel = new Map<string, 'alive' | 'dead'>();
+  /** Dead players silently listening in on the alive channel (one-way — they never send audio there). */
+  private aliveListeners = new Set<string>();
 
   constructor(code: string, io: IoServer) {
     this.code = code;
@@ -171,6 +173,28 @@ export class GameRoom {
         this.io.to(peerSocket).emit('voice:peerJoined', { id: playerId, name: player.name });
       }
     }
+
+    if (channel === 'alive') {
+      // Any dead players already listening in should also connect to this new voice.
+      for (const listenerId of this.aliveListeners) {
+        const listenerSocket = this.players.get(listenerId)?.socketId;
+        if (listenerSocket) {
+          this.io.to(listenerSocket).emit('voice:aliveMemberJoined', { id: playerId, name: player.name });
+        }
+      }
+    } else {
+      // Dead players automatically hear the living, one-way, without ever sending audio there.
+      this.aliveListeners.add(playerId);
+      const aliveMembers = [...this.voiceChannel.entries()]
+        .filter(([, ch]) => ch === 'alive')
+        .map(([id]) => id)
+        .map((id) => this.players.get(id)!)
+        .filter(Boolean)
+        .map((p) => ({ id: p.id, name: p.name }));
+      if (player.socketId) {
+        this.io.to(player.socketId).emit('voice:listenPeers', { peers: aliveMembers });
+      }
+    }
   }
 
   leaveVoice(playerId: string): void {
@@ -179,6 +203,7 @@ export class GameRoom {
 
   private removeFromVoice(playerId: string): void {
     const channel = this.voiceChannel.get(playerId);
+    this.aliveListeners.delete(playerId);
     if (!channel) return;
     this.voiceChannel.delete(playerId);
     for (const [otherId, otherChannel] of this.voiceChannel) {
@@ -186,6 +211,12 @@ export class GameRoom {
       const otherSocket = this.players.get(otherId)?.socketId;
       if (otherSocket) {
         this.io.to(otherSocket).emit('voice:peerLeft', { id: playerId });
+      }
+    }
+    if (channel === 'alive') {
+      for (const listenerId of this.aliveListeners) {
+        const listenerSocket = this.players.get(listenerId)?.socketId;
+        if (listenerSocket) this.io.to(listenerSocket).emit('voice:aliveMemberLeft', { id: playerId });
       }
     }
   }
@@ -266,6 +297,7 @@ export class GameRoom {
     this.lastVoteResult = null;
     this.winner = null;
     this.voiceChannel.clear();
+    this.aliveListeners.clear();
     this.phase = 'lobby';
     return this.startGame();
   }
@@ -293,9 +325,15 @@ export class GameRoom {
     }
     const step = this.nightSequence[this.nightStepIndex];
     const blocked = this.nightActions.seductressBlockId;
-    const actors = this.livingPlayers().filter(
-      (p) => p.roleId && step.roles.includes(p.roleId) && p.id !== blocked,
-    );
+    // The detective is a special case: being blocked doesn't stop them from
+    // acting, it makes their result a lie instead (handled in
+    // recordNightAction). Every other blocked role is excluded outright.
+    const wouldAct = this.livingPlayers().filter((p) => p.roleId && step.roles.includes(p.roleId));
+    const actors = wouldAct.filter((p) => p.id !== blocked || p.roleId === 'detective');
+    const blockedActor = wouldAct.find((p) => p.id === blocked && p.roleId !== 'detective');
+    if (blockedActor?.socketId) {
+      this.io.to(blockedActor.socketId).emit('night:blocked');
+    }
     if (actors.length === 0) {
       this.advanceNightStep();
       return;
@@ -324,9 +362,9 @@ export class GameRoom {
         mafiaTeammates: actor.roleId === 'mafia' ? mafiaTeammates.filter((m) => m.id !== actor.id) : undefined,
       });
     }
-    // Everyone not acting this step sees a waiting/black overlay.
+    // Everyone not acting this step (and not the just-notified blocked player) sees a waiting/black overlay.
     for (const player of this.livingPlayers()) {
-      if (!this.currentActors.has(player.id) && player.socketId) {
+      if (!this.currentActors.has(player.id) && player.id !== blockedActor?.id && player.socketId) {
         this.io.to(player.socketId).emit('night:waiting');
       }
     }
@@ -355,7 +393,11 @@ export class GameRoom {
         this.nightActions.detectiveTargetId = payload.targetId;
         if (payload.targetId && player.socketId) {
           const target = this.players.get(payload.targetId);
-          const isEvil = !!target?.roleId && ROLES_BY_ID[target.roleId].team === 'evil';
+          const trueIsEvil = !!target?.roleId && ROLES_BY_ID[target.roleId].team === 'evil';
+          // The seductress visited the detective tonight: her block doesn't
+          // stop the investigation, it poisons the result with a lie.
+          const wasBlocked = this.nightActions.seductressBlockId === playerId;
+          const isEvil = wasBlocked ? !trueIsEvil : trueIsEvil;
           this.io.to(player.socketId).emit('investigation:result', { targetId: payload.targetId, isEvil });
         }
         break;
@@ -437,6 +479,14 @@ export class GameRoom {
       victims.add(witchPoisonTargetId);
       const witch = this.livingPlayers().find((p) => p.roleId === 'witch');
       if (witch) witch.witchPoisonUsed = true;
+    }
+
+    // Wrong place, wrong time: the seductress was visiting whoever the
+    // mafia ended up killing, so she's caught in it too — regardless of
+    // whether the intended victim itself got saved.
+    if (mafiaFinalTargetId && this.nightActions.seductressBlockId === mafiaFinalTargetId) {
+      const seductress = this.livingPlayers().find((p) => p.roleId === 'seductress');
+      if (seductress) victims.add(seductress.id);
     }
 
     for (const victimId of victims) {
